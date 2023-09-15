@@ -34,7 +34,9 @@ services:
 
 volumes:
   mysql-data:
+    driver: local
   gogs-data:
+    driver: local
 
 networks:
   gogs-net:
