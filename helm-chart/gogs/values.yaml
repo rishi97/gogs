@@ -1,0 +1,58 @@
+global:
+  namespace: ""
+  imageRegistry: ""
+  repository: &repository gogs
+  ReleaseTag: &releaseTag latest
+  imagePullPolicy: &imagePolicy Always
+  imagePullSecrets: []
+
+replicaCount:
+  gogs: 1
+
+images:
+  gogs: gogs
+
+service:
+  gogs:
+    type: NodePort
+    nodePort: 30070
+
+# resources: 
+#   limits:
+#     cpu: 1000m
+#     # memory: 128Mi
+#   requests:
+#     cpu: 200m
+#     memory: 512Mi
+
+# nodeSelector: {}
+
+# ingress:
+#   enabled: false
+#   class: "nginx"
+#   hostname: "postman-web.yntraa.com"
+#   tlsSecret: "yntraa-tls"
+
+GogsInit: true
+
+domainName: example.com
+hostName: gogs.example.com
+externalURL: "http://13.232.174.38:30070"
+databaseType: mysql
+
+login:
+  user: "ccpadmin"
+  pass: "password143"
+  email: "ccpadmin@example.com"
+
+mysql:
+  enabled: true
+  fullnameOverride: "gogs-mysql"
+  auth:
+    rootPassword: "root"
+    createDatabase: true
+    database: "gogs"
+    username: "gogs"
+    password: "gogs"
+    # persistence:
+    #   subPath: ""

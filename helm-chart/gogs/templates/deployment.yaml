@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gogs
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gogs
+  template:
+    metadata:
+      labels:
+        app: gogs
+    spec:
+      # securityContext:
+      #   runAsUser: 1000
+      #   runAsGroup: 1000
+        # fsGroup: 1000
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - name: mysql-check
+        image: mysql:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          while true; do
+            mysqladmin -h gogs-mysql -u gogs --password=gogs ping
+            if [ $? == "0" ]; then
+              exit 0
+            fi
+            echo "Waiting for mysql to start!"
+            sleep 1
+          done
+      containers:
+      - name: gogs
+        image: {{ .Values.global.repository }}/{{ .Values.images.gogs }}:{{ .Values.global.ReleaseTag }}
+        # image: rishabh0197/gogs:v1
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: 22
+          name: ssh
+        - containerPort: 3000
+          name: http
+        env:
+        - name: SOCAT_LINK
+          value: "false"
+        volumeMounts:
+        - name: gogs-conf
+          readOnly: false
+          mountPath: /data/gogs/conf/
+      volumes:
+      - name: gogs-conf
+        configMap:
+          name: gogs-config

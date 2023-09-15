@@ -1,0 +1,42 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gogs-git-config-script
+  namespace: {{ .Release.Namespace }}
+data:
+  git-config.sh: |-
+    #!/bin/sh
+    ##Installing packages
+    apt-get update -y
+    apt-get install git -y
+
+    ##Setting env variables
+    USERNAME="{{ .Values.login.user }}"
+    PASSWORD="{{ .Values.login.pass }}"
+    EMAIL="{{ .Values.login.email }}"
+    GOGS_URL="gogs-svc:80"
+    GOGS_SSH_URL="gogs-svc:2222"
+    REPO="wfengine_DAGs"
+        
+    ##Fetch token
+    TOKEN_JSON=$(curl -X POST -u "$USERNAME:$PASSWORD" -H "Content-Type: application/json" -d '{"name":"token"}' "http://$GOGS_URL/api/v1/users/$USERNAME/tokens")
+    TOKEN=$(echo $TOKEN_JSON | grep -o '"sha1":"[^"]*' | cut -d'"' -f4)
+    echo $TOKEN
+    
+    ##Set Data for Repo creation
+    #DATA='{ "name": "$REPO", "private": false, "description": "This repository consists of all the ccp workflow engine DAGs!" }'
+    DATA="{ \"name\": \"$REPO\", \"private\": false, \"description\": \"This repository consists of all the ccp workflow engine DAGs!\" }"
+    echo $DATA
+    
+    ##Create repo
+    curl -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/json" -d "$DATA" "http://$GOGS_URL/api/v1/user/repos"
+    
+    ## Cloning into the repo
+    git clone http://$GOGS_URL/$USERNAME/$REPO.git
+    cd $REPO
+    cp -r /home/dags/ .
+    git add .
+    git config --global user.email "$EMAIL"
+    git config --global user.name "$USERNAME"
+    git commit -m "updated dag files"
+    git push http://$USERNAME:$TOKEN@$GOGS_URL/$USERNAME/$REPO.git

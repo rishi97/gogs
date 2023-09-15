@@ -1,0 +1,47 @@
+{{- if .Values.GogsInit }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gogs-job
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: ccp-workflow-engine
+      initContainers:
+      - name: wait-for-pod
+        image: coredgeio/kubectl:1.18.16
+        command:
+          - sh
+          - -c
+          - |
+            until [ "$(kubectl get -n {{ .Release.Namespace }} pods -l app=gogs -o 'jsonpath={range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}')" == "True" ]; do
+              echo "Waiting for gogs to be ready..." && sleep 1
+            done
+            POD_NAME=$(kubectl -n {{ .Release.Namespace }} get pods -l app=gogs -o jsonpath='{.items[0].metadata.name}')
+            kubectl exec pod/$POD_NAME -n {{ .Release.Namespace }} -- su git -c "./gogs admin create-user --admin --name {{ .Values.login.user }} --password {{ .Values.login.pass }} --email {{ .Values.login.email }}"
+      containers:
+      - name: gogs-git-conf
+        image: nginx:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - /home/scripts/git-config.sh
+        volumeMounts:
+        - name: scripts
+          mountPath: /home/scripts
+        - name: dags-files
+          mountPath: /home/dags
+      volumes:
+      - name: scripts
+        configMap:
+          name: gogs-git-config-script
+          defaultMode: 0744
+      - name: dags-files
+        configMap:
+          name: ccp-wf-dags
+  backoffLimit: 1
+{{- end }}
